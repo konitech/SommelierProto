@@ -1,0 +1,2 @@
+# SommelierProto
+AIソムリエのプロトタイプ
