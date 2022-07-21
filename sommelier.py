@@ -115,7 +115,7 @@ class Sommelier:
             st.markdown(f"- **{'、'.join(dishData['フルーティ']['要素'])}**に由来するフルーティな香りあり。")
 
         if dishData['乳製品']['値'] == 1:
-            st.markdown(f"- **{'、'.join(dishData['乳製品']['要素'])}**に由来するフクリーミーな香りあり。")
+            st.markdown(f"- **{'、'.join(dishData['乳製品']['要素'])}**に由来するクリーミーな香りあり。")
         
         if dishData['麹']['値'] == 1:
             st.markdown(f"- **{'、'.join(dishData['麹']['要素'])}**に由来する麹の香りあり。")
@@ -127,7 +127,7 @@ class Sommelier:
             st.markdown(f"- **{'、'.join(dishData['マリーン']['要素'])}**に由来する磯の香りあり。")
 
         if dishData['メイラード']['値'] == 1:
-            st.markdown(f"- **{'、'.join(dishData['メイラード']['要素'])}**に由来する焦げたような香りあり。")
+            st.markdown(f"- **{'、'.join(dishData['メイラード']['要素'])}**に由来する香ばしさあり。")
 
         if dishData['テルペン']['値'] == 1:
             st.markdown(f"- **{'、'.join(dishData['テルペン']['要素'])}**に由来するテルペンの香りあり。")
