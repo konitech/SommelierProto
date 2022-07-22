@@ -1,3 +1,4 @@
+from urllib.parse import _NetlocResultMixinBytes
 import pandas as pd
 import streamlit as st
 
@@ -67,6 +68,11 @@ class Sommelier:
     def kikizake(self, dish_name, condiment, sake, preference):
         df_kikizake = sake.copy()
 
+        # アウトプット
+        preference_comment = ''
+        dish_comment = ''
+        sake_score = None
+
         df_kikizake['スコア'] = 0.0
         df_kikizake['濃淡度スコア'] = 0.0
         df_kikizake['香りスコア'] = 0.0
@@ -75,6 +81,7 @@ class Sommelier:
         df_kikizake['香り同調度'] = 0.0
         df_kikizake['ウォッシュ同調度'] = 0.0
         df_kikizake['香り同調要素'] = ''
+        df_kikizake['コメント'] = ''
 
         best_index = 0 # ベストな酒のインデックス
         best_point = 0 # 最高の同調度
@@ -83,124 +90,117 @@ class Sommelier:
         # 料理データを取得
         dishData = self.dishDB.getDishData(dish_name, condiment)
         print(dishData)
+        if dishData:
 
-        # 好み
-        st.markdown("### あなたの好みの傾向")
-
-        if preference == 'ワイン':
-            st.write('ワイン好みのあなたは「香り重視タイプ」')
-        elif preference == 'ビール':
-            st.write('ビール好みのあなたは「スッキリ感重視タイプ」')
-        elif preference == 'サワー':
-            st.write('サワー好みのあなたは「スッキリ感重視タイプ」')
-        elif preference == '日本酒':
-            st.write('日本酒好みのあなたは「バランス重視タイプ」')
-        else:
-            pass
-
-        # 料理の特徴をコメントする
-        st.markdown("### 料理のポイント")
-
-        if dishData['濃淡度']['値'] > 0.7:
-            st.markdown("- 味は**濃いめ**。")
-        elif dishData['濃淡度']['値'] < 0.3:
-            st.markdown("- 味は**さっぱりめ**。")
-        else:
-            st.markdown("- 味の濃淡は**中間**。")
-
-        if dishData['うま味']['値'] > 0.5:
-            st.markdown(f"- **{'、'.join(dishData['うま味']['要素'])}**のうま味多め。")
-
-        if dishData['フルーティ']['値'] == 1:
-            st.markdown(f"- **{'、'.join(dishData['フルーティ']['要素'])}**に由来するフルーティな香りあり。")
-
-        if dishData['乳製品']['値'] == 1:
-            st.markdown(f"- **{'、'.join(dishData['乳製品']['要素'])}**に由来するクリーミーな香りあり。")
-        
-        if dishData['麹']['値'] == 1:
-            st.markdown(f"- **{'、'.join(dishData['麹']['要素'])}**に由来する麹の香りあり。")
-
-        if dishData['穀物']['値'] == 1:
-            st.markdown(f"- **{'、'.join(dishData['穀物']['要素'])}**に由来する穀物の香りあり。")
-
-        if dishData['マリーン']['値'] == 1:
-            st.markdown(f"- **{'、'.join(dishData['マリーン']['要素'])}**に由来する磯の香りあり。")
-
-        if dishData['メイラード']['値'] == 1:
-            st.markdown(f"- **{'、'.join(dishData['メイラード']['要素'])}**に由来する香ばしさあり。")
-
-        if dishData['テルペン']['値'] == 1:
-            st.markdown(f"- **{'、'.join(dishData['テルペン']['要素'])}**に由来するテルペンの香りあり。")
-
-        if dishData['酸味']['値'] == 1:
-            st.markdown(f"- **{'、'.join(dishData['酸味']['要素'])}**に由来する酸味の香りあり。")
-
-        if dishData['刺激']['値'] == 1:
-            st.markdown(f"- **{'、'.join(dishData['刺激']['要素'])}**に由来するスパイシーな香りあり。")
-
-
-        for index, sake_item in df_kikizake.iterrows():
-            # まずは濃淡の判断
-            notando_match = self.evaluateNotandoPairing(dishData, sake_item.to_dict())
-
-            # 次に香りの判断
-            flavor_dict = self.evaluateFlavorPairing(dishData, sake_item.to_dict())
-
-            # 最後にウォッシュの判断
-            wash = self.evaluateWashEffect(dishData, sake_item.to_dict())
-
-            # 重みを考慮して点数化
-            # このときpreferenceによって重み付けを変化させる
+            # 好み
             if preference == 'ワイン':
-                notando_weight = 0.4
-                flavor_weight = 0.5
-                wash_weight = 0.1
+                preference_comment = 'ワイン好みのあなたは「香り重視タイプ」'
             elif preference == 'ビール':
-                notando_weight = 0.5
-                flavor_weight = 0.2
-                wash_weight = 0.3
+                preference_comment = 'ビール好みのあなたは「スッキリ感重視タイプ」'
             elif preference == 'サワー':
-                notando_weight = 0.5
-                flavor_weight = 0.2
-                wash_weight = 0.3
+                preference_comment = 'サワー好みのあなたは「スッキリ感重視タイプ」'
+            elif preference == '日本酒':
+                preference_comment = '日本酒好みのあなたは「バランス重視タイプ」'
             else:
-                notando_weight = 0.6
-                flavor_weight = 0.3
-                wash_weight = 0.1
+                pass
 
-            notando_score = notando_match*notando_weight*100
-            flavor_score = max(flavor_dict.values())*flavor_weight*100
-            wash_score = wash*wash_weight*100
+            # 料理の特徴
+            if dishData['濃淡度']['値'] > 0.7:
+                dish_comment = dish_comment + "味は濃いめ。"
+            elif dishData['濃淡度']['値'] < 0.3:
+                dish_comment = dish_comment + "味はさっぱりめ。"
+            else:
+                dish_comment = dish_comment + "味の濃淡は中間。"
 
-            score = notando_score + flavor_score + wash_score
-            df_kikizake.loc[index,'スコア'] = score
-            df_kikizake.loc[index,'濃淡度スコア'] = notando_score
-            df_kikizake.loc[index,'香りスコア'] = flavor_score
-            df_kikizake.loc[index,'ウォッシュスコア'] = wash_score
-            df_kikizake.loc[index,'濃淡同調度'] = notando_match
-            df_kikizake.loc[index,'香り同調度'] = max(flavor_dict.values())
-            df_kikizake.loc[index,'ウォッシュ同調度'] = wash
-            df_kikizake.loc[index,'香り同調要素'] = max(flavor_dict, key=flavor_dict.get)
+            if dishData['うま味']['値'] > 0.5:
+                dish_comment = dish_comment + f"{'、'.join(dishData['うま味']['要素'])}のうま味多め。"
 
-        
-        df_s = df_kikizake.sort_values('スコア', ascending=False)
+            if dishData['フルーティ']['値'] == 1:
+                dish_comment = dish_comment + f"{'、'.join(dishData['フルーティ']['要素'])}に由来するフルーティな香りあり。"
 
-        st.markdown("### きき酒")
+            if dishData['乳製品']['値'] == 1:
+                dish_comment = dish_comment + f"{'、'.join(dishData['乳製品']['要素'])}に由来するクリーミーな香りあり。"
+            
+            if dishData['麹']['値'] == 1:
+                dish_comment = dish_comment + f"{'、'.join(dishData['麹']['要素'])}に由来する麹の香りあり。"
 
-        st.markdown("#### ベストSAKEは")
-        best_sake = df_s.iloc[0]
-        st.metric(label=best_sake['名前'], value="{}点".format(round(best_sake['スコア'])))
-        self.comment(best_sake)
+            if dishData['穀物']['値'] == 1:
+                dish_comment = dish_comment + f"{'、'.join(dishData['穀物']['要素'])}に由来する穀物の香りあり。"
 
-        st.markdown("#### ワーストSAKEは")
-        worst_sake = df_s.iloc[-1]
-        st.metric(label=worst_sake['名前'], value="{}点".format(round(worst_sake['スコア'])))
-        self.comment(worst_sake)
+            if dishData['マリーン']['値'] == 1:
+                dish_comment = dish_comment + f"{'、'.join(dishData['マリーン']['要素'])}に由来する磯の香りあり。"
 
-        st.markdown("#### きき酒一覧")
-        for index, sake_item in df_s.iterrows():
-            st.metric(label=sake_item['名前'], value="{}点".format(round(sake_item['スコア'])))
-            # 評価に対するコメント
-            self.comment(sake_item)
+            if dishData['メイラード']['値'] == 1:
+                dish_comment = dish_comment + f"{'、'.join(dishData['メイラード']['要素'])}に由来する香ばしさあり。"
 
-        st.dataframe(df_s)
+            if dishData['テルペン']['値'] == 1:
+                dish_comment = dish_comment + f"{'、'.join(dishData['テルペン']['要素'])}に由来するテルペンの香りあり。"
+
+            if dishData['酸味']['値'] == 1:
+                dish_comment = dish_comment + f"{'、'.join(dishData['酸味']['要素'])}に由来する酸味の香りあり。"
+
+            if dishData['刺激']['値'] == 1:
+                dish_comment = dish_comment + f"{'、'.join(dishData['刺激']['要素'])}に由来するスパイシーな香りあり。"
+
+
+            for index, sake_item in df_kikizake.iterrows():
+                # まずは濃淡の判断
+                notando_match = self.evaluateNotandoPairing(dishData, sake_item.to_dict())
+
+                # 次に香りの判断
+                flavor_dict = self.evaluateFlavorPairing(dishData, sake_item.to_dict())
+
+                # 最後にウォッシュの判断
+                wash = self.evaluateWashEffect(dishData, sake_item.to_dict())
+
+                # 重みを考慮して点数化
+                # このときpreferenceによって重み付けを変化させる
+                if preference == 'ワイン':
+                    notando_weight = 0.4
+                    flavor_weight = 0.5
+                    wash_weight = 0.1
+                elif preference == 'ビール':
+                    notando_weight = 0.5
+                    flavor_weight = 0.2
+                    wash_weight = 0.3
+                elif preference == 'サワー':
+                    notando_weight = 0.5
+                    flavor_weight = 0.2
+                    wash_weight = 0.3
+                else:
+                    notando_weight = 0.6
+                    flavor_weight = 0.3
+                    wash_weight = 0.1
+
+                notando_score = notando_match*notando_weight*100
+                flavor_score = max(flavor_dict.values())*flavor_weight*100
+                wash_score = wash*wash_weight*100
+
+                score = notando_score + flavor_score + wash_score
+                df_kikizake.loc[index,'スコア'] = score
+                df_kikizake.loc[index,'濃淡度スコア'] = notando_score
+                df_kikizake.loc[index,'香りスコア'] = flavor_score
+                df_kikizake.loc[index,'ウォッシュスコア'] = wash_score
+                df_kikizake.loc[index,'濃淡同調度'] = notando_match
+                df_kikizake.loc[index,'香り同調度'] = max(flavor_dict.values())
+                df_kikizake.loc[index,'ウォッシュ同調度'] = wash
+                df_kikizake.loc[index,'香り同調要素'] = max(flavor_dict, key=flavor_dict.get)
+
+                # コメント
+                if score < 30:
+                    if notando_match < 0.3:
+                        df_kikizake.loc[index,'コメント'] = df_kikizake.loc[index,'コメント'] + f"🤢料理とお酒の味の濃淡のバランスが悪い：{notando_match}\n"
+                elif score > 50:
+                    if notando_match > 0.7:
+                        df_kikizake.loc[index,'コメント'] = df_kikizake.loc[index,'コメント'] + f"😋料理とお酒の味の濃淡のバランスが良い：{notando_match}\n"
+                    if max(flavor_dict.values()) > 0.7:
+                        df_kikizake.loc[index,'コメント'] = df_kikizake.loc[index,'コメント'] + f"🌹香りが調和している：{max(flavor_dict.values())}[{max(flavor_dict, key=flavor_dict.get)}]\n"
+                    if wash > 0.7:
+                        df_kikizake.loc[index,'コメント'] = df_kikizake.loc[index,'コメント'] + f"✨ウォッシュ効果あり：{wash}\n"
+            
+            sake_score = df_kikizake.sort_values('スコア', ascending=False)
+
+            return preference_comment, dish_comment, sake_score
+
+        else: # 料理が見つからない場合
+            return None, None, None
